@@ -1,5 +1,6 @@
-package io.github.thebusybiscuit.electricspawners;
+package io.github.thebusybiscuit.electricspawners.core;
 
+import io.github.thebusybiscuit.electricspawners.utils.ItemUtils;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -19,7 +20,6 @@ import io.github.thebusybiscuit.slimefun4.core.handlers.BlockPlaceHandler;
 import io.github.thebusybiscuit.slimefun4.core.networks.energy.EnergyNetComponentType;
 import io.github.thebusybiscuit.slimefun4.implementation.SlimefunItems;
 import io.github.thebusybiscuit.slimefun4.implementation.items.SimpleSlimefunItem;
-import io.github.thebusybiscuit.slimefun4.libraries.dough.items.CustomItemStack;
 import io.github.thebusybiscuit.slimefun4.utils.ChatUtils;
 import me.mrCookieSlime.CSCoreLibPlugin.Configuration.Config;
 import me.mrCookieSlime.Slimefun.Objects.handlers.BlockTicker;
@@ -30,7 +30,7 @@ import me.mrCookieSlime.Slimefun.api.item_transport.ItemTransportFlow;
 
 public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements EnergyNetComponent {
 
-    private static final int ENERGY_CONSUMPTION = 240;
+    private static final int ENERGY_CONSUMPTION = 1024;
     private static int lifetime = 0;
 
     private final EntityType entity;
@@ -40,13 +40,14 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
         super(category, new SlimefunItemStack("ELECTRIC_SPAWNER_" + mob, "db6bd9727abb55d5415265789d4f2984781a343c68dcaf57f554a5e9aa1cd",
                 "&ePowered Spawner &7(" + ChatUtils.humanize(mob) + ")",
                 "",
-                "&8\u21E8 &e\u26A1 &7Max Entity Cap: 6",
+                "&8\u21E8 &e\u26A1 &7Max Entity Cap: 2",
                 "&8\u21E8 &e\u26A1 &7512 J Buffer",
-                "&8\u21E8 &e\u26A1 &7240 J/Mob"
+                "&8\u21E8 &e\u26A1 &71024 J/Mob",
+                "&7(&oSpawns every 10 seconds&r&7)"
         ), RecipeType.ENHANCED_CRAFTING_TABLE, new ItemStack[] {
-                null, SlimefunItems.PLUTONIUM, null, 
-                SlimefunItems.ELECTRIC_MOTOR, new CustomItemStack(Material.SPAWNER, "&bReinforced Spawner", "&7Type: &b" + ChatUtils.humanize(type.toString())), SlimefunItems.ELECTRIC_MOTOR,
-                SlimefunItems.BLISTERING_INGOT_3, SlimefunItems.LARGE_CAPACITOR, SlimefunItems.BLISTERING_INGOT_3
+                null, SlimefunItems.PLUTONIUM.item(), null,
+                SlimefunItems.ELECTRIC_MOTOR.item(), ItemUtils.itemStack(Material.SPAWNER, "&bReinforced Spawner", "&7Type: &b" + ChatUtils.humanize(type.toString())), SlimefunItems.ELECTRIC_MOTOR.item(),
+                SlimefunItems.BLISTERING_INGOT_3.item(), SlimefunItems.LARGE_CAPACITOR.item(), SlimefunItems.BLISTERING_INGOT_3.item()
         });
         // @formatter:on
 
@@ -60,7 +61,7 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
             public void init() {
                 for (int i = 0; i < 9; i++) {
                     if (i != 4) {
-                        addItem(i, new CustomItemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " "), (p, slot, item, action) -> false);
+                        addItem(i, ItemUtils.itemStack(Material.LIGHT_GRAY_STAINED_GLASS_PANE, " "), (p, slot, item, action) -> false);
                     }
                 }
             }
@@ -68,14 +69,14 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
             @Override
             public void newInstance(BlockMenu menu, Block b) {
                 if (!BlockStorage.hasBlockInfo(b) || BlockStorage.getLocationInfo(b.getLocation(), "enabled") == null || BlockStorage.getLocationInfo(b.getLocation(), "enabled").equals("false")) {
-                    menu.replaceExistingItem(4, new CustomItemStack(Material.GUNPOWDER, "&7Enabled: &4\u2718", "", "&e> Click to enable this Machine"));
+                    menu.replaceExistingItem(4, ItemUtils.itemStack(Material.GUNPOWDER, "&7Enabled: &4\u2718", "", "&e> Click to enable this Machine"));
                     menu.addMenuClickHandler(4, (p, slot, item, action) -> {
                         BlockStorage.addBlockInfo(b, "enabled", "true");
                         newInstance(menu, b);
                         return false;
                     });
                 } else {
-                    menu.replaceExistingItem(4, new CustomItemStack(Material.REDSTONE, "&7Enabled: &2\u2714", "", "&e> Click to disable this Machine"));
+                    menu.replaceExistingItem(4, ItemUtils.itemStack(Material.REDSTONE, "&7Enabled: &2\u2714", "", "&e> Click to disable this Machine"));
                     menu.addMenuClickHandler(4, (p, slot, item, action) -> {
                         BlockStorage.addBlockInfo(b, "enabled", "false");
                         newInstance(menu, b);
@@ -116,7 +117,7 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
     }
 
     protected void tick(Block b) {
-        if (lifetime % 3 != 0) {
+        if (lifetime % 20 != 0 || lifetime == 0) {
             return;
         }
 
@@ -129,11 +130,11 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
         }
 
         int count = 0;
-        for (Entity n : b.getWorld().getNearbyEntities(b.getLocation(), 4.0, 4.0, 4.0)) {
-            if (n.getType().equals(this.entity)) {
+        for (Entity e : b.getWorld().getNearbyEntities(b.getLocation(), 7.0, 7.0, 7.0)) {
+            if (e.getType().equals(this.entity)) {
                 count++;
 
-                if (count > 6) {
+                if (count > 2) {
                     return;
                 }
             }
@@ -154,6 +155,10 @@ public class ElectricSpawner extends SimpleSlimefunItem<BlockTicker> implements 
 
             @Override
             public void uniqueTick() {
+                if (lifetime == 20) {
+                    lifetime = 0;
+                    return;
+                }
                 lifetime++;
             }
 
